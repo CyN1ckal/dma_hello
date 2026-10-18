@@ -1,0 +1,13 @@
+<!-- Copyright (c) 2026 CyNickal Software LLC. SPDX-License-Identifier: MIT -->
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="dma_hello_tests" type="CMakeRunConfiguration" factoryName="Application"
+                 PROGRAM_PARAMS="" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false"
+                 EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="dma_hello"
+                 TARGET_NAME="dma_hello_tests" CONFIG_NAME="Debug"
+                 RUN_TARGET_PROJECT_NAME="dma_hello" RUN_TARGET_NAME="dma_hello_tests"
+                 WORKING_DIR="file://$PROJECT_DIR$">
+    <method v="2">
+      <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+    </method>
+  </configuration>
+</component>

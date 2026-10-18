@@ -1,0 +1,773 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright (c) 2026 CyNickal Software LLC. SPDX-License-Identifier: MIT -->
+<svg xmlns="http://www.w3.org/2000/svg" xml:lang="en" width="1920" height="6080" viewBox="0 0 1920 6080" font-family="Segoe UI, Calibri, Arial, sans-serif" text-rendering="optimizeLegibility">
+  <title>dma_hello — Out-of-Band Windows 11 PE32+ Injection via FPGA DMA</title>
+  <desc>Research poster in five sections: intent and hardware boundary, nine-stage pipeline, kernel structure anatomy, defensive notes and bugcheck writes, and source citations 1 through 24.</desc>
+  <defs>
+    <linearGradient id="hdr" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0e1218"/>
+      <stop offset="100%" stop-color="#171d28"/>
+    </linearGradient>
+    <marker id="arr-blue" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 z" fill="#1d4ed8"/>
+    </marker>
+    <marker id="arr-teal" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 z" fill="#0f766e"/>
+    </marker>
+    <marker id="arr-violet" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 z" fill="#6d28d9"/>
+    </marker>
+    <marker id="arr-ink" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 z" fill="#334155"/>
+    </marker>
+    <marker id="arr-orange" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 z" fill="#c2410c"/>
+    </marker>
+    <style>
+      .eyebrow { font-size: 13px; font-weight: 700; letter-spacing: 0.08em; fill: #d6e6ff; }
+      .htitle { font-size: 32px; font-weight: 800; fill: #f8fafc; }
+      .deck { font-size: 16px; fill: #e8eef6; }
+      .meta { font-family: "Cascadia Mono", Consolas, "Courier New", monospace; font-size: 13px; fill: #d7e0ea; }
+      .sec { font-size: 18px; font-weight: 800; fill: #14181f; }
+      .ct { font-size: 16px; font-weight: 700; fill: #14181f; }
+      .bd { font-size: 14px; fill: #1c2430; }
+      .stg { font-size: 13px; fill: #1c2430; }
+      .bold { font-weight: 700; fill: #14181f; }
+      .code { font-family: "Cascadia Mono", Consolas, "Courier New", monospace; fill: #17304d; }
+      .cite { font-family: "Cascadia Mono", Consolas, "Courier New", monospace; font-weight: 700; fill: #9f1239; }
+      .cite-d { font-family: "Cascadia Mono", Consolas, "Courier New", monospace; font-weight: 700; fill: #ffd5df; }
+      .file { font-family: "Cascadia Mono", Consolas, "Courier New", monospace; font-size: 12px; fill: #243044; }
+      .mono { font-family: "Cascadia Mono", Consolas, "Courier New", monospace; font-size: 13px; fill: #1c2430; }
+      .td { font-family: "Cascadia Mono", Consolas, "Courier New", monospace; font-size: 13px; fill: #1c2430; }
+      .th { font-family: "Cascadia Mono", Consolas, "Courier New", monospace; font-size: 13px; font-weight: 700; fill: #14181f; }
+      .asm { font-family: "Cascadia Mono", Consolas, "Courier New", monospace; font-size: 14px; fill: #eef1f6; }
+      .chip-l { font-size: 12.5px; font-weight: 700; letter-spacing: 0.02em; }
+      .chip-v { font-size: 14px; fill: #f8fafc; }
+      .actor { font-size: 14px; font-weight: 800; }
+      .panel-h { font-size: 15px; font-weight: 700; fill: #f8fafc; }
+    </style>
+  </defs>
+
+  <rect width="1920" height="6080" fill="#e6ebf2"/>
+
+  <!-- Header -->
+  <rect width="1920" height="236" fill="url(#hdr)"/>
+  <rect y="236" width="1920" height="4" fill="#2f6fed"/>
+  <text class="eyebrow" x="32" y="34">SYSTEMS SECURITY RESEARCH EXHIBIT · HARDWARE-ASSISTED WINDOWS KERNEL &amp; MEMORY INTERNALS</text>
+  <text class="htitle" x="32" y="74">dma_hello — Out-of-Band Windows 11 PE32+ Injection via FPGA DMA</text>
+  <text class="deck" x="32" y="106">PFN unlink, one adjacent VAD EndingVpn, page tables, and a per-CR3 page copy. Payload then calls user32.<tspan class="cite-d">[1][2][20]</tspan></text>
+  <text class="meta" x="32" y="132">Live-verified: Windows 11 25H2 (Germanium 40-bit PFN)<tspan class="cite-d">[6]</tspan>  |  Transport: MemProcFS (vmm.dll + leechcore.dll) over fpga://<tspan class="cite-d">[4][24]</tspan>  |  C++20 (src/dma_hello/)<tspan class="cite-d">[24]</tspan></text>
+  <text x="1888" y="132" text-anchor="end" font-size="12.5" font-weight="700" fill="#d6e6ff" letter-spacing="0.04em">VERIFIED EXHIBIT METRICS (PROVABLE IN SOURCE)</text>
+  <line x1="32" y1="146" x2="1888" y2="146" stroke="#2a3444" stroke-width="1"/>
+
+  <g>
+    <rect x="32" y="156" width="455" height="68" rx="8" fill="#1a2130" stroke="#2e3b50"/>
+    <rect x="32" y="156" width="4" height="68" rx="2" fill="#4ade80"/>
+    <text class="chip-l" x="48" y="180" fill="#4ade80">src/ alloc APIs:</text>
+    <text class="chip-v" x="48" y="202">No VirtualAlloc / LoadLibrary /</text>
+    <text class="chip-v" x="48" y="220">CreateRemoteThread<tspan class="cite-d">[1]</tspan></text>
+  </g>
+  <g>
+    <rect x="499" y="156" width="455" height="68" rx="8" fill="#1a2130" stroke="#2e3b50"/>
+    <rect x="499" y="156" width="4" height="68" rx="2" fill="#38bdf8"/>
+    <text class="chip-l" x="515" y="180" fill="#38bdf8">Commit writes:</text>
+    <text class="chip-v" x="515" y="208">only the PDB fields that resolve<tspan class="cite-d">[13]</tspan></text>
+  </g>
+  <g>
+    <rect x="966" y="156" width="455" height="68" rx="8" fill="#1a2130" stroke="#2e3b50"/>
+    <rect x="966" y="156" width="4" height="68" rx="2" fill="#c084fc"/>
+    <text class="chip-l" x="982" y="180" fill="#c084fc">Per-CR3 COW Hook:</text>
+    <text class="chip-v" x="982" y="208">5B E9; FF 25 cave past ±2GB<tspan class="cite-d">[17][19]</tspan></text>
+  </g>
+  <g>
+    <rect x="1433" y="156" width="455" height="68" rx="8" fill="#1a2130" stroke="#2e3b50"/>
+    <rect x="1433" y="156" width="4" height="68" rx="2" fill="#fbbf24"/>
+    <text class="chip-l" x="1449" y="180" fill="#fbbf24">122 Catch2 Cases:</text>
+    <text class="chip-v" x="1449" y="208">14 files; "~[system]" runs 119<tspan class="cite-d">[21][22]</tspan></text>
+  </g>
+
+  <!-- I -->
+  <rect x="32" y="264" width="4" height="24" rx="2" fill="#14181f"/>
+  <text class="sec" x="48" y="284">I. RESEARCH INTENT, KERNEL CONSISTENCY THESIS &amp; HARDWARE BOUNDARY TOPOLOGY</text>
+
+  <rect x="32" y="304" width="1856" height="340" rx="12" fill="#ffffff" stroke="#d5dde8" stroke-width="1.25"/>
+  <text class="ct" x="56" y="336">1. Research Intent &amp; Core Thesis: Why Out-of-Band Kernel Synthesis Matters</text>
+
+  <text class="bd bold" x="56" y="368">• Research Objective (DMA mapping, then one user32 call):<tspan class="cite">[1][2][20]</tspan></text>
+  <text class="bd" x="56" y="390">An external PCIe/FPGA DMA device writes free frames, one VAD end, page tables, and a copied code page, maps a PE32+, and</text>
+  <text class="bd" x="56" y="412">resolves the IAT. src/ calls no allocation or thread API. LaunchHello then calls MessageBoxA or MessageBeep.</text>
+
+  <text class="bd bold" x="56" y="442">• Why Naive DMA Writes Crash Windows (The Kernel Consistency Gap):<tspan class="cite">[8][11][14][17]</tspan></text>
+  <text class="bd" x="56" y="464">Stomping free physical frames or inserting raw PTEs violates Windows Memory Manager invariants, causing fatal bugchecks on trim or exit:</text>
+  <text class="mono" x="56" y="488">PFN_LIST_CORRUPT (0x4E/0x99) · IRQL_NOT_LESS_OR_EQUAL (0xA @ VA 0x18) · QUOTA_UNDERFLOW (0x21) · Shared DLL Hang</text>
+
+  <text class="bd bold" x="980" y="368">• PDB-Driven Kernel Structure Synthesis:<tspan class="cite">[4][7][8][12][13]</tspan></text>
+  <text class="bd" x="980" y="390">Dynamically loads the target kernel PDB (<tspan class="code">ntoskrnl.exe</tspan> / <tspan class="code">ntkrnlmp.exe</tspan>) via <tspan class="code">VMMDLL_Pdb*</tspan> to resolve live</text>
+  <text class="bd" x="980" y="412">symbols and struct field offsets (<tspan class="code">MmPfnDatabase</tspan>, <tspan class="code">MiSystemPartition</tspan>, <tspan class="code">MiState</tspan>,</text>
+  <text class="bd" x="980" y="434"><tspan class="code">_MMPFN</tspan>, <tspan class="code">_MMVAD_SHORT</tspan>, <tspan class="code">_EPROCESS</tspan>). Missing fields are skipped.</text>
+
+  <rect x="56" y="512" width="1808" height="108" rx="8" fill="#f3f7fd" stroke="#c5d7f5"/>
+  <rect x="56" y="524" width="4" height="84" rx="2" fill="#1d4ed8"/>
+  <text class="bd bold" x="76" y="540">Fail-Closed Writes (Two Logged Structure Fallbacks):<tspan class="cite">[2][3][7][9][10][12][17]</tspan></text>
+  <text class="bd" x="76" y="564">Empty PTEs before the claim, <tspan class="code">ListName</tspan> checks, full reads, <tspan class="code">8x 1ms</tspan> PFN verify. <tspan class="code">GetTickCount[64]</tspan> throws. Color <tspan class="code">Total</tspan> is exact and never raised.</text>
+  <text class="bd" x="76" y="588"><tspan class="code">_MMPFN</tspan> falls back to <tspan class="code">0x30</tspan>; VAD Vpn to 25H2 <tspan class="code">+0x18..+0x21</tspan> (logged). A color-cap miss logs ERROR and keeps the splice. Exit <tspan class="code">1</tspan>, bad args <tspan class="code">2</tspan>.</text>
+
+  <text class="ct" x="32" y="674">2. System Actors &amp; Out-of-Band Hardware Boundary Topology</text>
+
+  <!-- Topology -->
+  <line x1="312" y1="892" x2="1608" y2="892" stroke="#94a3b8" stroke-width="2"/>
+
+  <g transform="translate(32,706)">
+    <rect width="560" height="300" rx="12" fill="#f3f7fd" stroke="#2563eb" stroke-width="1.5"/>
+    <text class="actor" x="20" y="28" fill="#1e3a8a">HOST (Analysis / Attacker PC)</text>
+    <rect x="16" y="42" width="528" height="58" rx="8" fill="#ffffff" stroke="#93c5fd"/>
+    <text class="mono" x="280" y="66" text-anchor="middle" font-weight="700" fill="#1d4ed8">dma_hello.exe + dma_hello_lib</text>
+    <text class="stg" x="280" y="88" text-anchor="middle" fill="#334155">C++20 Injector (<tspan class="code">src/dma_hello/</tspan>)<tspan class="cite">[2][24]</tspan></text>
+    <rect x="16" y="108" width="528" height="58" rx="8" fill="#ffffff" stroke="#c4b5fd"/>
+    <text class="mono" x="280" y="132" text-anchor="middle" font-weight="700" fill="#5b21b6">hello_dll / beep_dll</text>
+    <text class="stg" x="280" y="154" text-anchor="middle" fill="#334155">CRT-free <tspan class="code">MessageBoxA</tspan> or <tspan class="code">MessageBeep</tspan><tspan class="cite">[20][24]</tspan></text>
+    <text class="stg" x="20" y="190">• Links <tspan class="code">vmm.dll</tspan> + <tspan class="code">leechcore.dll</tspan><tspan class="cite">[24]</tspan></text>
+    <text class="stg" x="20" y="210">• Needs <tspan class="code">dbghelp.dll</tspan> + <tspan class="code">symsrv.dll</tspan> next</text>
+    <text class="stg" x="32" y="230">to <tspan class="code">vmm.dll</tspan> for <tspan class="code">nt</tspan> PDB symbols<tspan class="cite">[4][24]</tspan></text>
+    <text class="mono" x="20" y="254">CLI: --process --ark --hello --beep</text>
+    <text class="mono" x="20" y="276">Deploy: deploy_to_target.bat DEST<tspan class="cite">[24]</tspan></text>
+  </g>
+  <text class="stg bold" x="636" y="844" text-anchor="middle" fill="#1c2430">USB3 /</text>
+  <text class="stg bold" x="636" y="864" text-anchor="middle" fill="#1c2430">API</text>
+
+  <g transform="translate(680,706)">
+    <rect width="560" height="300" rx="12" fill="#fff7ed" stroke="#ea580c" stroke-width="1.5"/>
+    <text class="actor" x="20" y="28" fill="#9a3412">FPGA DMA TRANSPORT</text>
+    <rect x="16" y="42" width="528" height="58" rx="8" fill="#ffffff" stroke="#fdba74"/>
+    <text class="mono" x="280" y="66" text-anchor="middle" font-weight="700" fill="#c2410c">MemProcFS / LeechCore</text>
+    <text class="stg" x="280" y="88" text-anchor="middle" fill="#334155"><tspan class="code">FTD3XX.dll</tspan> · <tspan class="code">-device fpga</tspan><tspan class="cite">[3][4]</tspan></text>
+    <text class="stg" x="20" y="126">• <tspan class="code">VMMDLL_Initialize(5, argv)</tspan><tspan class="cite">[4]</tspan></text>
+    <text class="stg" x="20" y="146">• Uncached reads via flag:</text>
+    <text class="mono" x="32" y="166">VMMDLL_FLAG_NOCACHE<tspan class="cite">[5]</tspan></text>
+    <text class="stg" x="20" y="188">• Phys R/W (<tspan class="code">pid=0xFFFFFFFF</tspan>)<tspan class="cite">[5]</tspan></text>
+    <text class="stg" x="20" y="208">• Kernel VA (<tspan class="code">System|0x80000000</tspan>, else 4)<tspan class="cite">[4]</tspan></text>
+    <text class="stg" x="20" y="230">• <tspan class="code">write_kernel()</tspan>: VA readback, else</text>
+    <text class="stg" x="32" y="250"><tspan class="code">virt2phys</tspan> PA write + verify<tspan class="cite">[5]</tspan></text>
+  </g>
+  <text class="stg bold" x="1284" y="844" text-anchor="middle" fill="#9a3412">PCIe</text>
+  <text class="stg bold" x="1284" y="864" text-anchor="middle" fill="#9a3412">DMA</text>
+
+  <g transform="translate(1328,706)">
+    <rect width="560" height="300" rx="12" fill="#f3faf5" stroke="#16a34a" stroke-width="1.5"/>
+    <text class="actor" x="20" y="28" fill="#14532d">TARGET (Live Windows 11 25H2)</text>
+    <rect x="16" y="42" width="528" height="108" rx="8" fill="#ffffff" stroke="#86efac"/>
+    <text class="stg bold" x="28" y="64" fill="#14532d">Kernel Space (<tspan class="code">ntoskrnl.exe</tspan>, PID 4)<tspan class="cite">[4]</tspan></text>
+    <text class="mono" x="28" y="86">• MmPfnDatabase · MiSystemPartition<tspan class="cite">[7]</tspan></text>
+    <text class="mono" x="28" y="106">• MiState (Colors) · MmPteBase<tspan class="cite">[8][11]</tspan></text>
+    <text class="mono" x="28" y="126">• MmTotalCommittedPages · EPROCESS<tspan class="cite">[5][13]</tspan></text>
+    <rect x="16" y="158" width="528" height="126" rx="8" fill="#ffffff" stroke="#4ade80"/>
+    <text class="stg bold" x="28" y="180" fill="#14532d">Target Process (default: <tspan class="code">notepad.exe</tspan>)<tspan class="cite">[3]</tspan></text>
+    <text class="mono" x="28" y="202">• CR3 (paDTB) 4-Level Page Tables<tspan class="cite">[5][11]</tspan></text>
+    <text class="mono" x="28" y="222">• EPROCESS.VadRoot (_MMVAD_SHORT)<tspan class="cite">[12]</tspan></text>
+    <text class="mono" x="28" y="242">• COW: user32.dll!PeekMessageW<tspan class="cite">[3][17]</tspan></text>
+    <text class="stg bold" x="28" y="264" fill="#14532d">• src/: no alloc API. Payload calls user32<tspan class="cite">[1][20]</tspan></text>
+  </g>
+
+  <!-- II -->
+  <rect x="32" y="1030" width="4" height="24" rx="2" fill="#14181f"/>
+  <text class="sec" x="48" y="1050">II. END-TO-END 9-STAGE INJECTION PIPELINE — VERIFIED CALL ORDER IN inject.cpp::run() &amp; mm/allocate.cpp::allocate()<tspan class="cite">[2][10]</tspan></text>
+
+  <text class="stg" x="648" y="1212" text-anchor="middle" font-size="22" font-weight="700" fill="#1d4ed8">›</text>
+  <text class="stg" x="1272" y="1212" text-anchor="middle" font-size="22" font-weight="700" fill="#1d4ed8">›</text>
+  <text class="stg" x="648" y="1524" text-anchor="middle" font-size="22" font-weight="700" fill="#0f766e">›</text>
+  <text class="stg" x="1272" y="1524" text-anchor="middle" font-size="22" font-weight="700" fill="#0f766e">›</text>
+  <text class="stg" x="648" y="1860" text-anchor="middle" font-size="22" font-weight="700" fill="#6d28d9">›</text>
+  <text class="stg" x="1272" y="1860" text-anchor="middle" font-size="22" font-weight="700" fill="#6d28d9">›</text>
+
+  <path d="M1888,1206 H1906 V1362 H14 V1518 H30" fill="none" stroke="#0f766e" stroke-width="2.25" stroke-linejoin="round" marker-end="url(#arr-teal)"/>
+  <path d="M1888,1518 H1906 V1674 H14 V1854 H30" fill="none" stroke="#6d28d9" stroke-width="2.25" stroke-linejoin="round" marker-end="url(#arr-violet)"/>
+
+  <!-- Stage 1 -->
+  <g transform="translate(32,1068)">
+    <rect width="608" height="276" rx="12" fill="#ffffff" stroke="#1d4ed8" stroke-width="1.5"/>
+    <rect x="1.5" y="1.5" width="605" height="46" rx="10" fill="#e8f0ff"/>
+    <rect x="1.5" y="32" width="605" height="16" fill="#e8f0ff"/>
+    <rect x="14" y="9" width="30" height="30" rx="7" fill="#1e40af"/>
+    <text x="29" y="30" text-anchor="middle" font-size="16" font-weight="800" fill="#ffffff">1</text>
+    <text x="54" y="30" font-size="15" font-weight="700" fill="#1e3a8a">Parse PE32+ Payload &amp; Open MemProcFS Session<tspan class="cite">[2][4][5][15]</tspan></text>
+    <text class="stg" x="18" y="68">1. <tspan class="code">PeImage::load(dll_path)</tspan> validates <tspan class="code">MZ</tspan>, <tspan class="code">PE\0\0</tspan>, AMD64 (<tspan class="code">0x8664</tspan>), and PE32+</text>
+    <text class="stg" x="30" y="86">(<tspan class="code">0x20B</tspan>); rejects TLS callbacks (<tspan class="code">tls_size != 0</tspan>); parses sections/relocs/IAT.<tspan class="cite">[15]</tspan></text>
+    <text class="stg" x="18" y="108">2. Sizes region: <tspan class="code">need = max(alloc_size, align4K(size_of_image + 0x2000))</tspan></text>
+    <text class="stg" x="30" y="126">(default <tspan class="code">alloc_size = 0x100000</tspan>, protection <tspan class="code">0x40 PAGE_EXECUTE_READWRITE</tspan>).<tspan class="cite">[2][3]</tspan></text>
+    <text class="stg" x="18" y="148">3. <tspan class="code">Session(device)</tspan> checks <tspan class="code">dbghelp/symsrv.dll</tspan> and opens <tspan class="code">VMMDLL_Initialize</tspan></text>
+    <text class="stg" x="30" y="166">with <tspan class="code">-device fpga:// -waitinitialize -disable-python -printf</tspan>.<tspan class="cite">[4]</tspan></text>
+    <text class="stg" x="18" y="188">4. <tspan class="code">find_process()</tspan> resolves <tspan class="code">pid</tspan>, <tspan class="code">vaEPROCESS</tspan>, and <tspan class="code">cr3 = paDTB</tspan>; lazy-loads</text>
+    <text class="stg" x="30" y="206"><tspan class="code">ntoskrnl.exe</tspan> / <tspan class="code">ntkrnlmp.exe</tspan> PDB via <tspan class="code">VMMDLL_PdbLoad</tspan> on symbol queries.<tspan class="cite">[4][5]</tspan></text>
+    <rect x="12" y="240" width="584" height="26" rx="6" fill="#f4f7fb"/>
+    <text class="file" x="22" y="258">inject.cpp:18-38 · pe.cpp:188-268 · session.cpp:29-69, 111-196</text>
+  </g>
+
+  <!-- Stage 2 -->
+  <g transform="translate(656,1068)">
+    <rect width="608" height="276" rx="12" fill="#ffffff" stroke="#1d4ed8" stroke-width="1.5"/>
+    <rect x="1.5" y="1.5" width="605" height="46" rx="10" fill="#e8f0ff"/>
+    <rect x="1.5" y="32" width="605" height="16" fill="#e8f0ff"/>
+    <rect x="14" y="9" width="30" height="30" rx="7" fill="#1e40af"/>
+    <text x="29" y="30" text-anchor="middle" font-size="16" font-weight="800" fill="#ffffff">2</text>
+    <text x="54" y="30" font-size="15" font-weight="700" fill="#1e3a8a">Scan VAD Holes &amp; Pre-Verify Empty Leaf PTEs<tspan class="cite">[10][11][12]</tspan></text>
+    <text class="stg" x="18" y="68">1. <tspan class="code">mem.vad_map(pid)</tspan> (<tspan class="code">VMMDLL_Map_GetVadU</tspan>) fetches active virtual ranges.<tspan class="cite">[5][10]</tspan></text>
+    <text class="stg" x="18" y="90">2. <tspan class="code">vad_candidates()</tspan> scans <tspan class="code">[0x10000, 0x7FFFFFF00000)</tspan>, preferring holes</text>
+    <text class="stg" x="30" y="108">right after an existing VAD; blocks null page, <tspan class="code">0x7FF00000–0x80000000</tspan>, and</text>
+    <text class="stg" x="30" y="126"><tspan class="code">&gt;= 0x7FFFFFF00000</tspan> (never touches <tspan class="code">KUSER_SHARED_DATA</tspan>'s page).<tspan class="cite">[12]</tspan></text>
+    <text class="stg" x="18" y="148">3. <tspan class="code">range_block()</tspan> walks <tspan class="code">CR3</tspan> (skipping unmapped 512G/1G/2M spans) and requires</text>
+    <text class="stg" x="30" y="166"><tspan class="code">RangeBlock::Clear</tspan> (every leaf PTE == 0; rejects Large/Present/Software).<tspan class="cite">[10][11]</tspan></text>
+    <text class="stg" x="18" y="188">4. <tspan class="code">plan_candidate()</tspan> walks <tspan class="code">EPROCESS.VadRoot</tspan> (<tspan class="code">depth &lt;= 64</tspan>) to confirm a</text>
+    <text class="stg" x="30" y="206">predecessor <tspan class="code">_MMVAD_SHORT</tspan> node exists <tspan class="bold">before</tspan> claiming any physical PFN.<tspan class="cite">[10][12]</tspan></text>
+    <rect x="12" y="240" width="584" height="26" rx="6" fill="#f4f7fb"/>
+    <text class="file" x="22" y="258">allocate.cpp:31-64 · vad.cpp:20-27,397-458 · page_tables.cpp:243-279</text>
+  </g>
+
+  <!-- Stage 3 -->
+  <g transform="translate(1280,1068)">
+    <rect width="608" height="276" rx="12" fill="#ffffff" stroke="#1d4ed8" stroke-width="1.5"/>
+    <rect x="1.5" y="1.5" width="605" height="46" rx="10" fill="#e8f0ff"/>
+    <rect x="1.5" y="32" width="605" height="16" fill="#e8f0ff"/>
+    <rect x="14" y="9" width="30" height="30" rx="7" fill="#1e40af"/>
+    <text x="29" y="30" text-anchor="middle" font-size="16" font-weight="800" fill="#ffffff">3</text>
+    <text x="54" y="30" font-size="15" font-weight="700" fill="#1e3a8a">Claim Physical Frames &amp; Unlink MMPFN Free Lists<tspan class="cite">[6][7][8][9]</tspan></text>
+    <text class="stg" x="18" y="68">1. Deref <tspan class="code">nt!MmPfnDatabase</tspan>. <tspan class="code">phys_map</tspan> (<tspan class="code">pfn &gt;= 0x100</tspan>) is typed by <tspan class="code">GetPfnEx</tspan></text>
+    <text class="stg" x="30" y="86">in batches of 128. Claim batches of 256 stop at <tspan class="code">pages+32</tspan> or 32768 seen.<tspan class="cite">[5][6][7]</tspan></text>
+    <text class="stg" x="18" y="108">2. Heads: <tspan class="code">Mm/Mi*PageListHead</tspan> or <tspan class="code">PageLists</tspan> (zeroed <tspan class="code">+0</tspan>, free <tspan class="code">+0x80</tspan></text>
+    <text class="stg" x="30" y="126">if that child field is missing, <tspan class="code">ListName</tspan> checked). No MiState: interior unlink.<tspan class="cite">[7][8]</tspan></text>
+    <text class="stg" x="18" y="148">3. Color on: tails only. Exact <tspan class="code">Total</tspan> drop, wait 5 ms, <tspan class="code">Blink</tspan> before <tspan class="code">Flink</tspan>.</text>
+    <text class="stg" x="30" y="166">One page: both head links = end. Else predecessor <tspan class="code">Flink</tspan> = end. Page links stay.<tspan class="cite">[6][8]</tspan></text>
+    <text class="stg" x="18" y="188">4. Aggregate <tspan class="code">Total</tspan> is best-effort (settle within 8). A miss does not undo the</text>
+    <text class="stg" x="30" y="206">splice or raise <tspan class="code">Total</tspan>. Then <tspan class="code">e1=0x46</tspan>, share 1, and only then <tspan class="code">u1 = 0</tspan>.<tspan class="cite">[8][9]</tspan></text>
+    <rect x="12" y="240" width="584" height="26" rx="6" fill="#f4f7fb"/>
+    <text class="file" x="22" y="258">allocate.cpp:66 · pfn.cpp:229-277, 452, 649-971, 1081-1230</text>
+  </g>
+
+  <!-- Stage 4 -->
+  <g transform="translate(32,1380)">
+    <rect width="608" height="276" rx="12" fill="#ffffff" stroke="#0f766e" stroke-width="1.5"/>
+    <rect x="1.5" y="1.5" width="605" height="46" rx="10" fill="#e7f6f4"/>
+    <rect x="1.5" y="32" width="605" height="16" fill="#e7f6f4"/>
+    <rect x="14" y="9" width="30" height="30" rx="7" fill="#115e59"/>
+    <text x="29" y="30" text-anchor="middle" font-size="16" font-weight="800" fill="#ffffff">4</text>
+    <text x="54" y="30" font-size="15" font-weight="700" fill="#115e59">Grow Existing _MMVAD_SHORT Node Over the Hole<tspan class="cite">[10][12]</tspan></text>
+    <text class="stg" x="18" y="68">1. Does not insert a VAD node, rebalance the AVL tree, or read <tspan class="code">VadType</tspan>.</text>
+    <text class="stg" x="30" y="86">The adjacent node keeps its previous type. A hole with no neighbor is refused.<tspan class="cite">[12]</tspan></text>
+    <text class="stg" x="18" y="108">2. Resolves <tspan class="code">_MMVAD_SHORT</tspan> offsets via PDB (<tspan class="code">StartingVpn</tspan>, <tspan class="code">EndingVpn</tspan>,</text>
+    <text class="stg" x="30" y="126"><tspan class="code">StartingVpnHigh</tspan>, <tspan class="code">EndingVpnHigh</tspan>; 25H2 fallback <tspan class="code">+0x18..+0x21</tspan>).<tspan class="cite">[12]</tspan></text>
+    <text class="stg" x="18" y="148">3. Computes inclusive end VPN: <tspan class="code">end_vpn = (base_va &gt;&gt; 12) + pages - 1</tspan>.<tspan class="cite">[10]</tspan></text>
+    <text class="stg" x="18" y="170">4. <tspan class="code">extend_vad_end()</tspan> → <tspan class="code">expand_ending_vpn()</tspan> writes low 32 bits (<tspan class="code">uint32_t</tspan>) to</text>
+    <text class="stg" x="30" y="188"><tspan class="code">EndingVpn</tspan> and bits <tspan class="code">32..39</tspan> (<tspan class="code">uint8_t</tspan>) to <tspan class="code">EndingVpnHigh</tspan> via <tspan class="code">write_kernel()</tspan>.<tspan class="cite">[10][12]</tspan></text>
+    <rect x="12" y="240" width="584" height="26" rx="6" fill="#f4f7fb"/>
+    <text class="file" x="22" y="258">allocate.cpp:70-78 · vad.cpp:41-78, 111-145, 251-254</text>
+  </g>
+
+  <!-- Stage 5 -->
+  <g transform="translate(656,1380)">
+    <rect width="608" height="276" rx="12" fill="#ffffff" stroke="#0f766e" stroke-width="1.5"/>
+    <rect x="1.5" y="1.5" width="605" height="46" rx="10" fill="#e7f6f4"/>
+    <rect x="1.5" y="32" width="605" height="16" fill="#e7f6f4"/>
+    <rect x="14" y="9" width="30" height="30" rx="7" fill="#115e59"/>
+    <text x="29" y="30" text-anchor="middle" font-size="16" font-weight="800" fill="#ffffff">5</text>
+    <text x="54" y="30" font-size="15" font-weight="700" fill="#115e59">Install 4-Level Page Tables &amp; Activate MMPFN Entries<tspan class="cite">[6][8][11]</tspan></text>
+    <text class="stg" x="18" y="68">1. <tspan class="code">map_range()</tspan> walks <tspan class="code">CR3</tspan> (<tspan class="code">PML4 → PDPT → PD → PT</tspan>); missing tables pop a</text>
+    <text class="stg" x="30" y="86">frame from <tspan class="code">table_frames</tspan>, zero its 4 KiB PA, and queue a <tspan class="code">PendingLink</tspan>.<tspan class="cite">[11]</tspan></text>
+    <text class="stg" x="18" y="108">2. <tspan class="code">pte_kernel_va</tspan> reads live <tspan class="code">nt!MmPteBase</tspan> and throws if it is missing or</text>
+    <text class="stg" x="30" y="126">not canonical: <tspan class="code">base + ((va &amp; 0xFFFFFFFFFFFF) &gt;&gt; 9 &amp; 0x7FFFFFFFF8)</tspan>.<tspan class="cite">[6][11]</tspan></text>
+    <text class="stg" x="18" y="148">3. <tspan class="code">mark_pfn_active</tspan> writes <tspan class="code">e1=0x46</tspan> <tspan class="bold">before</tspan> clearing <tspan class="code">u1</tspan>. Data: share 1, ref 1.</text>
+    <text class="stg" x="30" y="166">New tables: <tspan class="code">u1=0</tspan>, share <tspan class="code">used+1</tspan>, used count in <tspan class="code">OriginalPte</tspan> bits 16-25.<tspan class="cite">[8][11]</tspan></text>
+    <text class="stg" x="18" y="188">4. Each child adds one share. Linked tables store used in <tspan class="code">u1</tspan> bits 32-41;</text>
+    <text class="stg" x="30" y="206">unlinked tables use <tspan class="code">OriginalPte</tspan>. <tspan class="code">RefCount</tspan> stays 1. Publish bottom-up.<tspan class="cite">[6][11]</tspan></text>
+    <rect x="12" y="240" width="584" height="26" rx="6" fill="#f4f7fb"/>
+    <text class="file" x="22" y="258">allocate.cpp:82 · page_tables.cpp:56-116, 224-235, 355 · pfn.cpp:1103-1156</text>
+  </g>
+
+  <!-- Stage 6 -->
+  <g transform="translate(1280,1380)">
+    <rect width="608" height="276" rx="12" fill="#ffffff" stroke="#0f766e" stroke-width="1.5"/>
+    <rect x="1.5" y="1.5" width="605" height="46" rx="10" fill="#e7f6f4"/>
+    <rect x="1.5" y="32" width="605" height="16" fill="#e7f6f4"/>
+    <rect x="14" y="9" width="30" height="30" rx="7" fill="#115e59"/>
+    <text x="29" y="30" text-anchor="middle" font-size="16" font-weight="800" fill="#ffffff">6</text>
+    <text x="54" y="30" font-size="15" font-weight="700" fill="#115e59">Write Commit Counters The PDB Resolves<tspan class="cite">[10][13]</tspan></text>
+    <text class="stg" x="18" y="68"><tspan class="code">charge_private_commit</tspan> writes each counter the PDB resolves. A missing</text>
+    <text class="stg" x="18" y="86">field is skipped. None resolved: log, leave uncharged. Job commit stays.<tspan class="cite">[13]</tspan></text>
+    <text class="stg" x="18" y="108">1. VAD <tspan class="code">CommitCharge</tspan> (+ <tspan class="code">High</tspan>): <tspan class="code">+pages</tspan> when that node and field exist.<tspan class="cite">[13]</tspan></text>
+    <text class="stg" x="18" y="130">2. <tspan class="code">EPROCESS.CommitCharge</tspan> and peak, and <tspan class="code">NumberOfPrivatePages</tspan>: <tspan class="code">+pages</tspan>.<tspan class="cite">[13]</tspan></text>
+    <text class="stg" x="18" y="152">3. <tspan class="code">VirtualSize/Peak</tspan> <tspan class="code">+bytes</tspan> only when <tspan class="code">grow_virtual</tspan> is set. COW passes false.<tspan class="cite">[13]</tspan></text>
+    <text class="stg" x="18" y="174">4. <tspan class="code">QuotaBlock</tspan> <tspan class="code">PsPageFile[2]</tspan> Usage/Peak <tspan class="code">+bytes</tspan>. Stride from the PDB, else <tspan class="code">0x20</tspan>.<tspan class="cite">[13]</tspan></text>
+    <text class="stg" x="18" y="196">5. <tspan class="code">MmTotalCommittedPages</tspan> <tspan class="code">+pages</tspan>. No WSLE. COW charges the covering VAD.<tspan class="cite">[13]</tspan></text>
+    <rect x="12" y="240" width="584" height="26" rx="6" fill="#f4f7fb"/>
+    <text class="file" x="22" y="258">allocate.cpp:85 · vad.cpp:279-395 · hook.cpp:177, 283</text>
+  </g>
+
+  <!-- Stage 7 -->
+  <g transform="translate(32,1716)">
+    <rect width="608" height="276" rx="12" fill="#ffffff" stroke="#6d28d9" stroke-width="1.5"/>
+    <rect x="1.5" y="1.5" width="605" height="46" rx="10" fill="#f3eefe"/>
+    <rect x="1.5" y="32" width="605" height="16" fill="#f3eefe"/>
+    <rect x="14" y="9" width="30" height="30" rx="7" fill="#5b21b6"/>
+    <text x="29" y="30" text-anchor="middle" font-size="16" font-weight="800" fill="#ffffff">7</text>
+    <text x="54" y="30" font-size="15" font-weight="700" fill="#5b21b6">Map Relocated PE32+ Image &amp; Patch Target IAT<tspan class="cite">[2][15][16]</tspan></text>
+    <text class="stg" x="18" y="68">1. <tspan class="code">pe.mapped(allocation.va)</tspan> copies headers (<tspan class="code">size_of_headers</tspan>) and sections</text>
+    <text class="stg" x="30" y="86">(<tspan class="code">s.va</tspan>) and applies <tspan class="code">kRelDir64 (10)</tspan> &amp; <tspan class="code">kRelHighLow (3)</tspan> base relocations.<tspan class="cite">[16]</tspan></text>
+    <text class="stg" x="18" y="108">2. <tspan class="code">write_image()</tspan> writes the buffer via <tspan class="code">write_process_va()</tspan> (translating each</text>
+    <text class="stg" x="30" y="126">4 KiB chunk via <tspan class="code">virt_to_phys(cr3, va)</tspan>) and verifies <tspan class="code">'MZ'</tspan> readback.<tspan class="cite">[11][16]</tspan></text>
+    <text class="stg" x="18" y="148">3. <tspan class="code">resolve_imports()</tspan> maps API-set names (<tspan class="code">api-ms-win-crt-*</tspan> → <tspan class="code">ucrtbase</tspan>,</text>
+    <text class="stg" x="30" y="166"><tspan class="code">api-ms-win-core-*</tspan> → <tspan class="code">kernel32/kernelbase/ntdll</tspan>, <tspan class="code">vcruntime140*</tspan> → <tspan class="code">ntdll</tspan>)</text>
+    <text class="stg" x="30" y="184">and writes resolved export VAs (<tspan class="code">export_addr</tspan>) to <tspan class="code">base + item.iat_rva</tspan>.<tspan class="cite">[5][16]</tspan></text>
+    <rect x="12" y="240" width="584" height="26" rx="6" fill="#f4f7fb"/>
+    <text class="file" x="22" y="258">inject.cpp:34-36 · pe.cpp:146-186, 270-344 · page_tables.cpp:311-328</text>
+  </g>
+
+  <!-- Stage 8 -->
+  <g transform="translate(656,1716)">
+    <rect width="608" height="276" rx="12" fill="#ffffff" stroke="#6d28d9" stroke-width="1.5"/>
+    <rect x="1.5" y="1.5" width="605" height="46" rx="10" fill="#f3eefe"/>
+    <rect x="1.5" y="32" width="605" height="16" fill="#f3eefe"/>
+    <rect x="14" y="9" width="30" height="30" rx="7" fill="#5b21b6"/>
+    <text x="29" y="30" text-anchor="middle" font-size="16" font-weight="800" fill="#ffffff">8</text>
+    <text x="54" y="30" font-size="14.5" font-weight="700" fill="#5b21b6">Build One-Shot Stub, Trampoline &amp; Per-CR3 COW Page<tspan class="cite">[11][17][18][19]</tspan></text>
+    <text class="stg" x="18" y="68">1. Blocks <tspan class="code">kernel32/kernelbase!GetTickCount[64]</tspan> (<tspan class="code">HookError</tspan>). Steals the</text>
+    <text class="stg" x="30" y="86">first instruction when it is <tspan class="code">&gt;= 5</tspan> bytes; otherwise steals out to 14.<tspan class="cite">[17][18]</tspan></text>
+    <text class="stg" x="18" y="108">2. Writes <tspan class="code">flag_va</tspan> (<tspan class="code">+0x0</tspan>), <tspan class="code">stub_va</tspan> (<tspan class="code">+0x10</tspan>), and 16B-aligned <tspan class="code">trampoline_va</tspan></text>
+    <text class="stg" x="30" y="126">(RIP-relocated stolen bytes + JMP back) in <tspan class="code">code_page</tspan> (grows VAD if needed).<tspan class="cite">[17][18][19]</tspan></text>
+    <text class="stg" x="18" y="148">3. <tspan class="code">stage_cow_page</tspan> copies the hook page onto a spare PFN. A separate cave</text>
+    <text class="stg" x="30" y="166">page is COWed too. <tspan class="code">mark_pfn_active</tspan>, then <tspan class="code">publish_cow_pte</tspan> rewrites <tspan class="bold">only</tspan></text>
+    <text class="stg" x="30" y="184"><tspan class="bold">this CR3</tspan> (<tspan class="code">P|RW|US|A|D</tspan>). Other processes keep <tspan class="code">old_pa</tspan>. One-page commit.<tspan class="cite">[11][17]</tspan></text>
+    <rect x="12" y="240" width="584" height="26" rx="6" fill="#f4f7fb"/>
+    <text class="file" x="22" y="258">inject.cpp:37 · hook.cpp:113-297 · x64.cpp:314-448 · page_tables.cpp:330-346</text>
+  </g>
+
+  <!-- Stage 9 -->
+  <g transform="translate(1280,1716)">
+    <rect width="608" height="276" rx="12" fill="#ffffff" stroke="#6d28d9" stroke-width="1.5"/>
+    <rect x="1.5" y="1.5" width="605" height="46" rx="10" fill="#f3eefe"/>
+    <rect x="1.5" y="32" width="605" height="16" fill="#f3eefe"/>
+    <rect x="14" y="9" width="30" height="30" rx="7" fill="#5b21b6"/>
+    <text x="29" y="30" text-anchor="middle" font-size="16" font-weight="800" fill="#ffffff">9</text>
+    <text x="54" y="30" font-size="15" font-weight="700" fill="#5b21b6">Patch Physical COW Frame &amp; Fire Payload on Thread<tspan class="cite">[17][19][20]</tspan></text>
+    <text class="stg" x="18" y="68">1. A 5-byte insn inside ±2GB gets <tspan class="code">E9</tspan>. Farther, <tspan class="code">E9</tspan> aims at an <tspan class="code">int3</tspan> cave</text>
+    <text class="stg" x="30" y="86">and <tspan class="code">FF 25</tspan> to the stub. Shorter prologues use <tspan class="code">FF 25</tspan>. Foreign detours chain.<tspan class="cite">[17][19]</tspan></text>
+    <text class="stg" x="18" y="108">2. Writes detour to physical RAM: <tspan class="code">mem.write(hook_pa, padded, physical=true)</tspan></text>
+    <text class="stg" x="30" y="126">at <tspan class="code">hook_pa = (cow_frame &lt;&lt; 12) | (hook_addr &amp; 0xFFF)</tspan>.<tspan class="cite">[17]</tspan></text>
+    <text class="stg" x="18" y="148">3. <tspan class="code">PeekMessageW</tspan> hits the <tspan class="code">E9</tspan>. <tspan class="code">lock cmpxchg</tspan> stores 1 in <tspan class="code">flag_va</tspan> once.</text>
+    <text class="stg" x="30" y="166">The body saves <tspan class="code">rcx, rdx, r8, r9</tspan>, calls <tspan class="code">DllMain(base,1,0)</tspan> then</text>
+    <text class="stg" x="30" y="184"><tspan class="code">LaunchHello</tspan> (<tspan class="code">MessageBoxA</tspan> or <tspan class="code">MessageBeep</tspan>), then jumps to the trampoline.<tspan class="cite">[19][20]</tspan></text>
+    <rect x="12" y="240" width="584" height="26" rx="6" fill="#f4f7fb"/>
+    <text class="file" x="22" y="258">hook.cpp:226-299 · x64.cpp:391-448 · hello_dll.cpp:13 · beep_dll.cpp:13</text>
+  </g>
+
+  <rect x="32" y="2016" width="4" height="24" rx="2" fill="#14181f"/>
+  <text class="sec" x="48" y="2036">III. KERNEL DATA STRUCTURE &amp; MEMORY SURGERY ANATOMY (WINDOWS 11 24H2/25H2 GERMANIUM INTERNALS)</text>
+
+  <!-- III.A -->
+  <g transform="translate(32,2052)">
+    <rect width="920" height="560" rx="12" fill="#ffffff" stroke="#d5dde8" stroke-width="1.25"/>
+    <rect width="920" height="44" rx="12" fill="#1e3a8a"/>
+    <rect y="28" width="920" height="16" fill="#1e3a8a"/>
+    <text class="panel-h" x="18" y="28">A. _MMPFN (0x30B) State Transition &amp; Dual Free-List Splice<tspan class="cite-d">[6][7][8][11]</tspan></text>
+
+    <text class="bd bold" x="20" y="70">nt!MmPfnDatabase + (pfn * 0x30) Layout (PDB-resolved with fallback):<tspan class="cite">[7][11]</tspan></text>
+
+    <rect x="20" y="82" width="880" height="32" fill="#eef2f6"/>
+    <text class="th" x="32" y="103">Offset / Field</text>
+    <text class="th" x="262" y="103" fill="#9f1239">Before (Free/Zeroed)</text>
+    <text class="th" x="552" y="103" fill="#14532d">After (mark_pfn_active)</text>
+    <line x1="250" y1="82" x2="250" y2="286" stroke="#d5dde8"/>
+    <line x1="540" y1="82" x2="540" y2="286" stroke="#d5dde8"/>
+
+    <rect x="20" y="114" width="880" height="28" fill="#f8fafc"/>
+    <text class="td" x="32" y="133">+0x00 u1</text>
+    <text class="td" x="262" y="133">40-bit Flink (low 40b)<tspan class="cite">[6][8]</tspan></text>
+    <text class="td" x="552" y="133">u1=0; used not stored here<tspan class="cite">[6][11]</tspan></text>
+
+    <rect x="20" y="142" width="880" height="28" fill="#ffffff"/>
+    <text class="td" x="32" y="161">+0x08 PteAddress</text>
+    <text class="td" x="262" y="161">Stale / Unused</text>
+    <text class="td" x="552" y="161">Hyperspace pte_kernel_va<tspan class="cite">[11]</tspan></text>
+
+    <rect x="20" y="170" width="880" height="28" fill="#f8fafc"/>
+    <text class="td" x="32" y="189">+0x10 OriginalPte</text>
+    <text class="td" x="262" y="189">Stale</text>
+    <text class="td" x="552" y="189">mm&lt;&lt;5; tbl also used&lt;&lt;16<tspan class="cite">[11]</tspan></text>
+
+    <rect x="20" y="198" width="880" height="28" fill="#ffffff"/>
+    <text class="td" x="32" y="217">+0x18 u2</text>
+    <text class="td" x="262" y="217">40-bit Blink (low 40b)<tspan class="cite">[6][8]</tspan></text>
+    <text class="td" x="552" y="217">1, or used+1 on a new tbl<tspan class="cite">[11]</tspan></text>
+
+    <rect x="20" y="226" width="880" height="28" fill="#f8fafc"/>
+    <text class="td" x="32" y="245">+0x20 u3 (+2 e1)</text>
+    <text class="td" x="262" y="245">Ref=0, e1=Zero(0)/Free(1)</text>
+    <text class="td" x="552" y="245">Ref=1, e1=Active(6)|0x40<tspan class="cite">[11]</tspan></text>
+
+    <rect x="20" y="254" width="880" height="32" fill="#ffffff"/>
+    <text class="td" x="32" y="275">+0x28 u4</text>
+    <text class="td" x="262" y="275">Node / Color / Flags</text>
+    <text class="td" x="552" y="275">set_low_pfn(u4, pt_pfn)<tspan class="cite">[8][11]</tspan></text>
+    <line x1="20" y1="286" x2="900" y2="286" stroke="#d5dde8"/>
+
+    <rect x="20" y="300" width="880" height="244" rx="8" fill="#f4f7fb" stroke="#d5dde8"/>
+    <text class="bd bold" x="36" y="326">Germanium (24H2/25H2) Dual Free-List Unlink Invariants (<tspan class="code">unlink_one</tspan>):<tspan class="cite">[6][8][9]</tspan></text>
+    <text class="bd" x="36" y="352">• <tspan class="bold">Two List Terminators:</tspan> Aggregate lists end with 40 ones (<tspan class="code">0xFFFFFFFFFF</tspan>);</text>
+    <text class="bd" x="48" y="374">4K color lists (<tspan class="code">MiReplenishPageSlist</tspan>) end with 38 ones (<tspan class="code">0x3FFFFFFFFF</tspan>).<tspan class="cite">[6][8]</tspan></text>
+    <text class="bd" x="36" y="400">• <tspan class="bold">Per-Color Head Lookup:</tspan> Walks <tspan class="code">MiState.Hardware.NumaMemoryRanges</tspan> →</text>
+    <text class="bd" x="48" y="422"><tspan class="code">NodeInformation.FreePageInfo</tspan> 4K slot, then <tspan class="code">pfn % PageColors[3]</tspan>.<tspan class="cite">[8]</tspan></text>
+    <text class="bd" x="36" y="448">• <tspan class="bold">Safe State Ordering:</tspan> <tspan class="code">set_low_pfn</tspan> preserves upper node/lock bits; unlinked</text>
+    <text class="bd" x="48" y="470">page's own <tspan class="code">u1/u2</tspan> keep neighbor links until <tspan class="code">mark_pfn_active</tspan> writes <tspan class="code">e1=6</tspan></text>
+    <text class="bd" x="48" y="492"><tspan class="bold">before</tspan> clearing <tspan class="code">u1</tspan> (the write aimed at walker bugcheck <tspan class="code">0xA</tspan>).<tspan class="cite">[8][11][14]</tspan></text>
+    <text class="bd" x="36" y="518">• <tspan class="bold">Totals:</tspan> aggregate settles within 8. Color <tspan class="code">Total</tspan> must match the drop.<tspan class="cite">[8]</tspan></text>
+  </g>
+
+  <!-- III.B -->
+  <g transform="translate(968,2052)">
+    <rect width="920" height="560" rx="12" fill="#ffffff" stroke="#d5dde8" stroke-width="1.25"/>
+    <rect width="920" height="44" rx="12" fill="#115e59"/>
+    <rect y="28" width="920" height="16" fill="#115e59"/>
+    <text class="panel-h" x="18" y="28">B. 4-Level CR3 Page Tables, Hyperspace &amp; Per-Process COW<tspan class="cite-d">[6][11][17]</tspan></text>
+
+    <text class="bd bold" x="20" y="70">1. Bottom-Up Page Table Publication (<tspan class="code">map_range</tspan> / <tspan class="code">publish_pending</tspan>):<tspan class="cite">[11]</tspan></text>
+
+    <rect x="20" y="84" width="150" height="56" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.4"/>
+    <text class="mono" x="95" y="107" text-anchor="middle" font-weight="700" fill="#14532d">CR3 (PML4)</text>
+    <text class="mono" x="95" y="127" text-anchor="middle" fill="#3e4a59">va[47:39]</text>
+    <line x1="170" y1="112" x2="198" y2="112" stroke="#0f766e" stroke-width="1.8" marker-end="url(#arr-teal)"/>
+
+    <rect x="202" y="84" width="150" height="56" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.4"/>
+    <text class="mono" x="277" y="107" text-anchor="middle" font-weight="700" fill="#14532d">PDPT</text>
+    <text class="mono" x="277" y="127" text-anchor="middle" fill="#3e4a59">va[38:30]</text>
+    <line x1="352" y1="112" x2="380" y2="112" stroke="#0f766e" stroke-width="1.8" marker-end="url(#arr-teal)"/>
+
+    <rect x="384" y="84" width="150" height="56" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.4"/>
+    <text class="mono" x="459" y="107" text-anchor="middle" font-weight="700" fill="#14532d">PD</text>
+    <text class="mono" x="459" y="127" text-anchor="middle" fill="#3e4a59">va[29:21]</text>
+    <line x1="534" y1="112" x2="562" y2="112" stroke="#0f766e" stroke-width="1.8" marker-end="url(#arr-teal)"/>
+
+    <rect x="566" y="84" width="150" height="56" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.4"/>
+    <text class="mono" x="641" y="107" text-anchor="middle" font-weight="700" fill="#14532d">PT</text>
+    <text class="mono" x="641" y="127" text-anchor="middle" fill="#3e4a59">va[20:12]</text>
+    <line x1="716" y1="112" x2="744" y2="112" stroke="#0f766e" stroke-width="1.8" marker-end="url(#arr-teal)"/>
+
+    <rect x="748" y="84" width="152" height="56" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.6"/>
+    <text class="mono" x="824" y="107" text-anchor="middle" font-weight="700" fill="#14532d">4K Leaf</text>
+    <text class="mono" x="824" y="127" text-anchor="middle" fill="#14532d">P|RW|US</text>
+
+    <text class="bd" x="20" y="168">• <tspan class="bold">Hyperspace KVA:</tspan> <tspan class="code">table_entry_kernel_va(va, level)</tspan> applies <tspan class="code">pte_kernel_va</tspan></text>
+    <text class="bd" x="32" y="190"><tspan class="code">(level+1)</tspan> times via <tspan class="code">nt!MmPteBase</tspan> so every new table's <tspan class="code">PteAddress</tspan> matches.<tspan class="cite">[6][11]</tspan></text>
+    <text class="bd" x="20" y="216">• <tspan class="bold">Bottom-Up:</tspan> leaf first, then <tspan class="code">publish_pending</tspan> links PT → PD → PDPT → PML4.</text>
+    <text class="bd" x="32" y="238">+1 share per child. Used: <tspan class="code">u1</tspan> 32-41 if linked, else <tspan class="code">OriginalPte</tspan> 16-25.<tspan class="cite">[11]</tspan></text>
+
+    <line x1="20" y1="258" x2="900" y2="258" stroke="#d5dde8"/>
+    <text class="bd bold" x="20" y="284">2. Per-Process COW (<tspan class="code">stage_cow_page</tspan>, <tspan class="code">page_tables.cpp:330</tspan>):<tspan class="cite">[11][17]</tspan></text>
+
+    <rect x="20" y="298" width="420" height="112" rx="8" fill="#f8fafc" stroke="#64748b" stroke-width="1.25"/>
+    <text class="bd bold" x="34" y="322">Other Processes (explorer.exe, etc.)</text>
+    <text class="mono" x="34" y="346">Other CR3 → Shared PT Slot</text>
+    <text class="mono" x="34" y="368">PTE keeps original <tspan class="bold">old_pa</tspan></text>
+    <text class="bd bold" x="34" y="392" fill="#14532d">✓ Unmodified shared user32.dll</text>
+
+    <line x1="440" y1="354" x2="478" y2="354" stroke="#475569" stroke-width="1.8" marker-end="url(#arr-ink)"/>
+
+    <rect x="482" y="298" width="418" height="112" rx="8" fill="#f8fafc" stroke="#64748b" stroke-width="1.25"/>
+    <text class="bd bold" x="496" y="322">Original Shared Frame (<tspan class="code">old_pa</tspan>)</text>
+    <text class="mono" x="496" y="346">user32!PeekMessageW Prologue:</text>
+    <text class="mono" x="496" y="368">48 89 5C 24 08 48 89 6C 24 10</text>
+    <text class="stg" x="496" y="392" fill="#334155">Cloned via <tspan class="code">mem.read(old_pa, 4K)</tspan><tspan class="cite">[11]</tspan></text>
+
+    <rect x="20" y="422" width="420" height="122" rx="8" fill="#faf5ff" stroke="#7c3aed" stroke-width="1.5"/>
+    <text class="bd bold" x="34" y="446" fill="#5b21b6">Target Process (<tspan class="code">target.cr3</tspan>)<tspan class="cite">[11][17]</tspan></text>
+    <text class="mono" x="34" y="470">PTE at <tspan class="bold">found-&gt;slot_pa</tspan> updated:</text>
+    <text class="mono" x="34" y="492">(cow_frame&lt;&lt;12) | P | RW | US</text>
+    <text class="mono" x="34" y="514">| A | D; NX copied from old PTE<tspan class="cite">[11]</tspan></text>
+    <text class="bd bold" x="34" y="534" fill="#5b21b6">+ mark_pfn_active + 1p commit<tspan class="cite">[17]</tspan></text>
+
+    <line x1="440" y1="483" x2="478" y2="483" stroke="#6d28d9" stroke-width="2" marker-end="url(#arr-violet)"/>
+
+    <rect x="482" y="422" width="418" height="122" rx="8" fill="#f3e8ff" stroke="#7c3aed" stroke-width="1.5"/>
+    <text class="bd bold" x="496" y="446" fill="#5b21b6">Cloned Frame (<tspan class="code">cow_frame</tspan>)<tspan class="cite">[17]</tspan></text>
+    <text class="mono" x="496" y="470">hook_pa = (cow&lt;&lt;12)|(va&amp;0xFFF)</text>
+    <text class="mono" x="496" y="492" font-weight="700" fill="#9f1239">E9 rel32 (NOP if stolen &gt; 5)</text>
+    <text class="mono" x="496" y="514">FF 25 &lt;stub&gt; only inside a cave<tspan class="cite">[17]</tspan></text>
+    <text class="stg" x="496" y="534" fill="#4c1d95">Physical write: <tspan class="code">mem.write(..., true)</tspan><tspan class="cite">[17]</tspan></text>
+  </g>
+
+  <!-- III.C -->
+  <g transform="translate(32,2628)">
+    <rect width="1856" height="620" rx="12" fill="#ffffff" stroke="#d5dde8" stroke-width="1.25"/>
+    <rect width="1856" height="44" rx="12" fill="#5b21b6"/>
+    <rect y="28" width="1856" height="16" fill="#5b21b6"/>
+    <text class="panel-h" x="18" y="28">C. Allocated VA Layout, One-Shot Guard Stub &amp; Trampoline<tspan class="cite-d">[16][17][18][19]</tspan></text>
+
+    <text class="bd bold" x="20" y="72">Extended _MMVAD_SHORT Region (<tspan class="code">allocation.va .. + allocation.size</tspan>):<tspan class="cite">[12][17]</tspan></text>
+
+    <rect x="20" y="86" width="1816" height="92" rx="8" fill="#eff6ff" stroke="#93c5fd"/>
+    <text class="mono" x="36" y="112" font-weight="700" fill="#1d4ed8">allocation.va + 0x0000 .. + pe.size_of_image : Mapped PE32+ Payload<tspan class="cite">[15][16]</tspan></text>
+    <text class="bd" x="36" y="138">• Headers (<tspan class="code">'MZ'</tspan> readback) + sections + relocs (<tspan class="code">DIR64=10</tspan>, <tspan class="code">HIGHLOW=3</tspan>)<tspan class="cite">[16]</tspan></text>
+    <text class="bd" x="36" y="162">• IAT: <tspan class="code">MessageBoxA</tspan> (--hello) or <tspan class="code">MessageBeep</tspan> (--beep) · Export <tspan class="code">LaunchHello</tspan><tspan class="cite">[16][20]</tspan></text>
+
+    <rect x="20" y="190" width="1816" height="292" rx="8" fill="#faf5ff" stroke="#d8b4fe"/>
+    <text class="mono" x="36" y="216" font-weight="700" fill="#5b21b6">code_page = allocation.va + size - 0x1000 (or grown +0x1000 past PE)<tspan class="cite">[17]</tspan></text>
+    <text class="mono" x="36" y="242">• flag_va (code_page + 0x00): 8B flag; lock cmpxchg stores 1 only while it is 0<tspan class="cite">[17][19]</tspan></text>
+    <text class="mono" x="36" y="266">• stub_va (code_page + 0x10): build_oneshot_stub() x64 machine code:<tspan class="cite">[19]</tspan></text>
+
+    <rect x="36" y="280" width="1784" height="186" rx="8" fill="#161922"/>
+    <text class="asm" x="52" y="308">51 52 31 C0 48 BA &lt;flag&gt;    ; push rcx,rdx; xor eax,eax; mov rdx, flag</text>
+    <text class="asm" x="52" y="332">B1 01 F0 0F B0 0A 5A 59     ; mov cl,1; lock cmpxchg [rdx],cl; pop rdx,rcx</text>
+    <text class="asm" x="52" y="356" fill="#7dd3fc">0F 85 &lt;rel32&gt;               ; jne trampoline when the flag was already 1</text>
+    <text class="asm" x="52" y="380">51 52 41 50 41 51           ; push rcx, rdx, r8, r9</text>
+    <text class="asm" x="52" y="404" fill="#fde68a">48 83 EC 28 ... FF D0       ; sub rsp,0x28; DllMain(base,1,0); call export</text>
+    <text class="asm" x="52" y="428">48 83 C4 28 41 59 41 58 5A 59 ; add rsp; pop r9, r8, rdx, rcx</text>
+    <text class="asm" x="52" y="452">FF 25 00 00 00 00 &lt;tramp&gt;  ; jmp [rip] to trampoline (jne lands on a copy)</text>
+
+    <rect x="20" y="494" width="1816" height="108" rx="8" fill="#fdf4ff" stroke="#f0abfc"/>
+    <text class="mono" x="36" y="522" font-weight="700" fill="#86198f">trampoline_va = align16(stub_va + stub.size() + 16)<tspan class="cite">[17][18]</tspan></text>
+    <text class="bd" x="36" y="548">• <tspan class="code">relocate_stolen()</tspan> decodes stolen instructions (<tspan class="code">decode_insn</tspan>) and fixes RIP</text>
+    <text class="bd" x="48" y="570"><tspan class="code">ModRM (mod=0, rm=5)</tspan> disp32 (<tspan class="code">new_disp = target - new_rip</tspan>) &amp; rel8/rel32.<tspan class="cite">[18]</tspan></text>
+    <text class="bd" x="36" y="592">• Appends <tspan class="code">encode_jump(tramp_end, hook_addr + stolen.size())</tspan> (<tspan class="code">E9</tspan> or <tspan class="code">FF 25</tspan>).<tspan class="cite">[17][19]</tspan></text>
+  </g>
+
+  <rect x="32" y="3272" width="4" height="24" rx="2" fill="#14181f"/>
+  <text class="sec" x="48" y="3292">IV. SECURITY IMPLICATIONS, DEFENSIVE COUNTERMEASURES, BUGCHECK ENGINEERING &amp; VERIFICATION</text>
+
+  <rect x="32" y="3308" width="1856" height="44" rx="10" fill="#14181f"/>
+  <text x="52" y="3336" font-size="15" font-weight="700" fill="#f8fafc">SUMMARY PANEL — SECURITY IMPLICATIONS, TELEMETRY EVASION &amp; DEFENSIVE COUNTERMEASURES</text>
+
+  <!-- IV.1 -->
+  <g transform="translate(32,3368)">
+    <rect width="608" height="420" rx="12" fill="#fff5f6" stroke="#fecdd3" stroke-width="1.25"/>
+    <rect width="608" height="44" rx="12" fill="#9f1239"/>
+    <rect y="28" width="608" height="16" fill="#9f1239"/>
+    <text class="panel-h" x="16" y="28">1. APIs The Mapper Does Not Call</text>
+    <text class="bd bold" x="18" y="70" fill="#881337">• No alloc, map, or thread API in src/:<tspan class="cite">[1][2]</tspan></text>
+    <text class="bd" x="18" y="94"><tspan class="code">VirtualAllocEx</tspan>, <tspan class="code">WriteProcessMemory</tspan>, <tspan class="code">NtMapViewOfSection</tspan>,</text>
+    <text class="bd" x="18" y="118"><tspan class="code">LoadLibrary</tspan>, and <tspan class="code">CreateRemoteThread</tspan> do not appear in <tspan class="code">src/</tspan>.</text>
+    <text class="bd" x="18" y="142"><tspan class="code">LaunchHello</tspan> still calls <tspan class="code">user32</tspan>.<tspan class="cite">[1][20]</tspan></text>
+    <text class="bd bold" x="18" y="174" fill="#881337">• Notify paths the mapper does not enter:<tspan class="cite">[1][4][5]</tspan></text>
+    <text class="bd" x="18" y="198">Load-image notify, thread-creation notify, and ETW Ti</text>
+    <text class="bd" x="18" y="222">alloc/protect watch those APIs. The mapper does not call</text>
+    <text class="bd" x="18" y="246">them. <tspan class="code">MessageBoxA</tspan> and <tspan class="code">MessageBeep</tspan> still run on the existing</text>
+    <text class="bd" x="18" y="270"><tspan class="code">PeekMessageW</tspan> thread after the hook fires.</text>
+    <text class="bd bold" x="18" y="302" fill="#881337">• Threadless Execution Hijack:<tspan class="cite">[3][17][19]</tspan></text>
+    <text class="bd" x="18" y="326">No new thread or APC is queued. Execution rides the</text>
+    <text class="bd" x="18" y="350">target's existing UI thread calling <tspan class="code">user32!PeekMessageW</tspan>,</text>
+    <text class="bd" x="18" y="374">guarded by an 8-byte one-shot flag (<tspan class="code">flag_va</tspan>) so the payload</text>
+    <text class="bd" x="18" y="398">runs once. The stub restores rcx, rdx, r8, and r9.<tspan class="cite">[19]</tspan></text>
+  </g>
+
+  <!-- IV.2 -->
+  <g transform="translate(656,3368)">
+    <rect width="608" height="420" rx="12" fill="#f5f8fd" stroke="#bfdbfe" stroke-width="1.25"/>
+    <rect width="608" height="44" rx="12" fill="#1e3a8a"/>
+    <rect y="28" width="608" height="16" fill="#1e3a8a"/>
+    <text class="panel-h" x="16" y="28">2. Fields Written, Fields Left Alone</text>
+    <text class="bd bold" x="18" y="70" fill="#1e3a8a">• MMPFN fields this path fills:<tspan class="cite">[8][11]</tspan></text>
+    <text class="bd" x="18" y="94">A mapped page is <tspan class="code">ActiveAndValid (6)</tspan> with hyperspace</text>
+    <text class="bd" x="18" y="118"><tspan class="code">PteAddress</tspan> and demand-zero <tspan class="code">OriginalPte</tspan> (used&lt;&lt;16 on new</text>
+    <text class="bd" x="18" y="142">tables). Slack stays Active, share 1, <tspan class="code">u1</tspan> 0, and keeps its</text>
+    <text class="bd" x="18" y="166">old <tspan class="code">PteAddress</tspan>. COW keeps old share.</text>
+    <text class="bd bold" x="18" y="198" fill="#1e3a8a">• VAD end and commit writes:<tspan class="cite">[12][13]</tspan></text>
+    <text class="bd" x="18" y="222"><tspan class="code">EndingVpn</tspan> grows. <tspan class="code">VadType</tspan> stays, so an image VAD stays an</text>
+    <text class="bd" x="18" y="246">image VAD. Commit fields update only when the PDB has them.</text>
+    <text class="bd" x="18" y="270">Table <tspan class="code">RefCount</tspan> stays 1 (the <tspan class="code">0x21</tspan> write). No WSLE.<tspan class="cite">[13][14]</tspan></text>
+    <text class="bd bold" x="18" y="302" fill="#1e3a8a">• Blast-Radius Isolation via COW:<tspan class="cite">[11][17]</tspan></text>
+    <text class="bd" x="18" y="326"><tspan class="code">stage_cow_page()</tspan> clones the hooked page into a private</text>
+    <text class="bd" x="18" y="350">frame and edits only <tspan class="code">target.cr3</tspan>'s leaf PTE. System-wide</text>
+    <text class="bd" x="18" y="374">callers of <tspan class="code">user32.dll</tspan> never execute the patch, preventing</text>
+    <text class="bd" x="18" y="398">cross-process faults when the payload is in one VA space.</text>
+  </g>
+
+  <!-- IV.3 -->
+  <g transform="translate(1280,3368)">
+    <rect width="608" height="420" rx="12" fill="#f4faf6" stroke="#bbf7d0" stroke-width="1.25"/>
+    <rect width="608" height="44" rx="12" fill="#14532d"/>
+    <rect y="28" width="608" height="16" fill="#14532d"/>
+    <text class="panel-h" x="16" y="28">3. Defensive Mitigations &amp; Detection</text>
+    <text class="bd bold" x="18" y="70" fill="#14532d">• Hardware &amp; Hypervisor Prevention:</text>
+    <text class="bd" x="18" y="94">1. <tspan class="bold">IOMMU / Kernel DMA Protection</tspan> (VT-d / AMD-Vi) blocks unauthorized</text>
+    <text class="bd" x="18" y="118">PCIe devices from reading/writing kernel &amp; process physical RAM.</text>
+    <text class="bd" x="18" y="146">2. <tspan class="bold">HVCI / VBS (SLAT / EPT):</tspan> Hypervisor enforces code integrity in</text>
+    <text class="bd" x="18" y="170">Second-Level Paging; guest HVCI can refuse a guest RWX leaf.</text>
+    <text class="bd bold" x="18" y="202" fill="#14532d">• Forensic &amp; Anti-Cheat Detection Vectors:</text>
+    <text class="bd" x="18" y="226">1. <tspan class="bold">VAD / PTE Audit:</tspan> Flag <tspan class="code">_MMVAD_SHORT</tspan> nodes grown past their backing</text>
+    <text class="bd" x="18" y="250">section or private VAD spans with <tspan class="code">NX=0 (0x40)</tspan> leaf PTEs.<tspan class="cite">[3][11][12]</tspan></text>
+    <text class="bd" x="18" y="278">2. <tspan class="bold">Shared DLL COW Scan:</tspan> Compare <tspan class="code">user32.dll</tspan> leaf PTEs in <tspan class="code">CR3</tspan> against</text>
+    <text class="bd" x="18" y="302">the shared prototype PTE; detect private <tspan class="code">RW=1, D=1</tspan> code pages</text>
+    <text class="bd" x="18" y="326">starting with a 5B <tspan class="code">E9</tspan>, or <tspan class="code">FF 25</tspan> in a cave.<tspan class="cite">[11][17]</tspan></text>
+    <text class="bd" x="18" y="354">3. <tspan class="bold">Unlinked PE Scan:</tspan> <tspan class="code">write_image()</tspan> leaves <tspan class="code">'MZ'</tspan>/<tspan class="code">'PE'</tspan> at <tspan class="code">allocation.va</tspan></text>
+    <text class="bd" x="18" y="378">absent from the process <tspan class="code">PEB_LDR_DATA</tspan> module lists.<tspan class="cite">[16]</tspan></text>
+  </g>
+
+  <!-- IV bugcheck -->
+  <g transform="translate(32,3808)">
+    <rect width="1856" height="332" rx="12" fill="#ffffff" stroke="#d5dde8" stroke-width="1.25"/>
+    <rect width="1856" height="44" rx="12" fill="#1e293b"/>
+    <rect y="28" width="1856" height="16" fill="#1e293b"/>
+    <text class="panel-h" x="18" y="28">BUGCHECK WRITES IN SOURCE &amp; HARDWARE-FREE TESTS<tspan class="cite-d">[14][21][22][23]</tspan></text>
+    <text class="bd bold" x="20" y="72">1. Writes aimed at these bugchecks. No dump is in the tree:<tspan class="cite">[8][11][13][14][17]</tspan></text>
+
+    <rect x="20" y="86" width="1816" height="34" fill="#eef2f6"/>
+    <text class="th" x="32" y="108">Failure / Bugcheck</text>
+    <text class="th" x="400" y="108" fill="#9f1239">Cause named in comments</text>
+    <text class="th" x="1120" y="108" fill="#14532d">Write this tree performs</text>
+    <line x1="380" y1="86" x2="380" y2="310" stroke="#d5dde8"/>
+    <line x1="1100" y1="86" x2="1100" y2="310" stroke="#d5dde8"/>
+
+    <rect x="20" y="120" width="1816" height="48" fill="#f8fafc"/>
+    <text class="td" x="32" y="140" font-weight="700" fill="#9f1239">0x4E / 0x99</text>
+    <text class="td" x="32" y="158">PFN_LIST_CORRUPT<tspan class="cite">[14]</tspan></text>
+    <text class="td" x="400" y="150">Table share hit 0 with present leaves, or a stale Total was raised</text>
+    <text class="td" x="1120" y="150">+1 share/child; Modified clear; color Total is never raised<tspan class="cite">[8][11][14]</tspan></text>
+
+    <rect x="20" y="168" width="1816" height="48" fill="#ffffff"/>
+    <text class="td" x="32" y="188" font-weight="700" fill="#9f1239">0x0A (@ VA 0x18)</text>
+    <text class="td" x="32" y="206">IRQL_NOT_LESS<tspan class="cite">[14]</tspan></text>
+    <text class="td" x="400" y="198">Free page with u1=0, or color Total above the reachable Blink chain</text>
+    <text class="td" x="1120" y="198">Cap Total to that chain; e1=0x46 before u1 is cleared<tspan class="cite">[8][11][14]</tspan></text>
+
+    <rect x="20" y="216" width="1816" height="48" fill="#f8fafc"/>
+    <text class="td" x="32" y="236" font-weight="700" fill="#9f1239">0x21</text>
+    <text class="td" x="32" y="254">QUOTA_UNDERFLOW<tspan class="cite">[14]</tspan></text>
+    <text class="td" x="400" y="246">Exit returns more pagefile quota than charged if table RefCount &gt; 1</text>
+    <text class="td" x="1120" y="246">Keep table RefCount=1; charge PsPageFile[2] quota bytes<tspan class="cite">[11][13][14]</tspan></text>
+
+    <rect x="20" y="264" width="1816" height="46" fill="#ffffff"/>
+    <text class="td" x="32" y="284" font-weight="700" fill="#9f1239">Global OS Hang</text>
+    <text class="td" x="32" y="302">Shared DLL Patch<tspan class="cite">[17]</tspan></text>
+    <text class="td" x="400" y="292">Patching shared GetTickCount[64] or shared user32 page without COW</text>
+    <text class="td" x="1120" y="292">Throw HookError on GetTickCount; spare PFN required to COW<tspan class="cite">[17]</tspan></text>
+    <line x1="20" y1="310" x2="1836" y2="310" stroke="#d5dde8"/>
+  </g>
+
+  <g transform="translate(32,4156)">
+    <rect width="1856" height="252" rx="12" fill="#f8fafc" stroke="#d5dde8" stroke-width="1.25"/>
+    <text class="bd bold" x="24" y="36">2. SimulatedMemory, 122 Catch2 Cases. Not a Windows boot:<tspan class="cite">[21][22][23][24]</tspan></text>
+    <text class="bd" x="24" y="66">• <tspan class="bold"><tspan class="code">memory.hpp</tspan>:</tspan> <tspan class="code">dma_hello_lib</tspan> talks to <tspan class="code">Memory</tspan>, not <tspan class="code">vmm.dll</tspan>.</text>
+    <text class="bd" x="40" y="90"><tspan class="code">SimulatedMemory</tspan> stores pages and accepts the writes. It is not <tspan class="code">ntoskrnl</tspan>.<tspan class="cite">[21]</tspan></text>
+    <text class="bd" x="24" y="118">• <tspan class="bold">122 <tspan class="code">TEST_CASE</tspan> macros, 14 files.</tspan> <tspan class="code">"~[system]"</tspan> runs 119. One case</text>
+    <text class="bd" x="40" y="142">checks the <tspan class="code">0x1A/0x41790</tspan> used-count split (<tspan class="code">OriginalPte</tspan> vs <tspan class="code">u1</tspan>).<tspan class="cite">[22]</tspan></text>
+    <text class="bd" x="24" y="170">• <tspan class="bold">CI (<tspan class="code">.github/workflows/tests.yml</tspan>):</tspan> Builds <tspan class="code">dma_hello_tests.exe</tspan> on <tspan class="code">windows-2022</tspan></text>
+    <text class="bd" x="40" y="194">and runs <tspan class="code">"~[system]" -r junit::out=test-results.xml -r console</tspan>.<tspan class="cite">[23]</tspan></text>
+  </g>
+  <text class="file" x="56" y="4382">CMakeLists.txt:27-42,71-81 · deploy_to_target.bat · simulated_memory.hpp:20-83</text>
+
+  <rect x="32" y="4432" width="4" height="24" rx="2" fill="#14181f"/>
+  <text class="sec" x="48" y="4452">V. SOURCE LINE INDEX — CITATIONS POINT AT THIS TREE; CATCH2 USES SIMULATEDMEMORY</text>
+
+  <g transform="translate(32,4472)" font-family="Cascadia Mono, Consolas, Courier New, monospace" font-size="14" fill="#1c2430">
+    <rect width="1856" height="1490" rx="12" fill="#ffffff" stroke="#d5dde8" stroke-width="1.25"/>
+    <g fill="#f4f7fb">
+      <rect x="12" y="16" width="1832" height="58" rx="6"/>
+      <rect x="12" y="136" width="1832" height="58" rx="6"/>
+      <rect x="12" y="256" width="1832" height="58" rx="6"/>
+      <rect x="12" y="376" width="1832" height="58" rx="6"/>
+      <rect x="12" y="496" width="1832" height="58" rx="6"/>
+      <rect x="12" y="616" width="1832" height="58" rx="6"/>
+      <rect x="12" y="736" width="1832" height="58" rx="6"/>
+      <rect x="12" y="856" width="1832" height="58" rx="6"/>
+      <rect x="12" y="976" width="1832" height="58" rx="6"/>
+      <rect x="12" y="1096" width="1832" height="58" rx="6"/>
+      <rect x="12" y="1216" width="1832" height="58" rx="6"/>
+      <rect x="12" y="1336" width="1832" height="58" rx="6"/>
+    </g>
+    <g>
+      <text class="cite" x="28" y="40">[1]</text>
+      <text x="88" y="40">Zero injector APIs: no VirtualAlloc, WriteProcessMemory, LoadLibrary, or CreateRemoteThread</text>
+      <text x="88" y="62" fill="#243044">under src/. Target R/W is Memory (memory.hpp:30-33). The payload calls MessageBoxA or MessageBeep.</text>
+
+      <text class="cite" x="28" y="100">[2]</text>
+      <text x="88" y="100">inject.cpp:18-43 — load, Session, find_process, allocate, mapped, write_image, resolve_imports,</text>
+      <text x="88" y="122" fill="#243044">install_hook; a later throw calls retain_claim. main.cpp:16-81. Parse errors exit 2; DmaError exits 1.</text>
+
+      <text class="cite" x="28" y="160">[3]</text>
+      <text x="88" y="160">config.hpp:11-22 — notepad.exe, hello_dll\hello_dll.dll, 0x100000, prot 0x40, fpga://, user32.dll,</text>
+      <text x="88" y="182" fill="#243044">PeekMessageW, LaunchHello, debug 3, dma_hello.log. config.cpp:134-139 — --ark, --hello, --beep.</text>
+
+      <text class="cite" x="28" y="220">[4]</text>
+      <text x="88" y="220">session.cpp:29-69 — symbol-DLL check; VMMDLL_Initialize(5): -device, device, -waitinitialize,</text>
+      <text x="88" y="242" fill="#243044">-disable-python, -printf. Kernel pid is System|0x80000000, else 4|0x80000000. PdbLoad is :125.</text>
+
+      <text class="cite" x="28" y="280">[5]</text>
+      <text x="88" y="280">session.cpp:22 kPhysicalPid=0xFFFFFFFF; :84-92 MemReadEx NOCACHE throws unless every byte returns;</text>
+      <text x="88" y="302" fill="#243044">:175 find_process; :205 vad_map; :218 phys_map; :232 GetPfnEx. memory.cpp:62-96 write_kernel VA then PA.</text>
+
+      <text class="cite" x="28" y="340">[6]</text>
+      <text x="88" y="340">constants.hpp:10-49 — kPageSize, kDefaultPteBase (documented only; pte_kernel_va does not use it),</text>
+      <text x="88" y="362" fill="#243044">kPfnTerminator (40 ones), kKernelListEnd (38 ones), kActiveAndValid=6, kOrigUsedShift=16, kTableSlack=32.</text>
+
+      <text class="cite" x="28" y="400">[7]</text>
+      <text x="88" y="400">pfn.cpp:312-328 mmpfn_layout (size 0x30 if the PDB omits _MMPFN, logged at :1171); :386-431 list</text>
+      <text x="88" y="422" fill="#243044">heads (PageLists zeroed +0, free +0x80, ListName). :452 type batch 128. :1191 claim batch 256.</text>
+
+      <text class="cite" x="28" y="460">[8]</text>
+      <text x="88" y="460">pfn.cpp:229-254 aggregate Total, settle 8; :259 color Total must read back the drop; :649-677 cap</text>
+      <text x="88" y="482" fill="#243044">lowers Total and never raises it. :772 MiState. :831-971 tails only, 5 ms, Blink written before Flink.</text>
+
+      <text class="cite" x="28" y="520">[9]</text>
+      <text x="88" y="520">pfn.cpp:82-97 wait_landed retries 8 times, 1 ms apart; :113-142 write_pfn_qword, then physical;</text>
+      <text x="88" y="542" fill="#243044">:145 restore_u64s. A color-Total miss is not restored upward. An aggregate settle miss keeps the splice.</text>
+
+      <text class="cite" x="28" y="580">[10]</text>
+      <text x="88" y="580">allocate.cpp:23-109 — range_block Clear and plan_candidate before allocate_physical_pages (:66).</text>
+      <text x="88" y="602" fill="#243044">EndingVpn is restored only while map_range has not published (:80-96). A throw calls retain_claim (:99).</text>
+
+      <text class="cite" x="28" y="640">[11]</text>
+      <text x="88" y="640">page_tables.cpp:56-101 used count (u1 if linked, else OriginalPte); :111 publish_pending; :224-235</text>
+      <text x="88" y="662" fill="#243044">pte_kernel_va refuses a bad MmPteBase; :330 stage_cow_page; :344 publish_cow_pte; :355 map_range. pfn.cpp:1103.</text>
+
+      <text class="cite" x="28" y="700">[12]</text>
+      <text x="88" y="700">vad.cpp:20-27 user range and the KUSER_SHARED_DATA band; :41-76 layout, 25H2 fallback +0x18..+0x21;</text>
+      <text x="88" y="722" fill="#243044">:111 expand_ending_vpn; :397 forbidden_range; :428 vad_candidates; :451 plan_candidate. No invented VA.</text>
+
+      <text class="cite" x="28" y="760">[13]</text>
+      <text x="88" y="760">vad.cpp:279-395 — charge_private_commit writes each counter whose PDB field exists.</text>
+      <text x="88" y="782" fill="#243044">VirtualSize only if grow_virtual. A missing field is skipped. CommitChargeJob is left alone.</text>
+
+      <text class="cite" x="28" y="820">[14]</text>
+      <text x="88" y="820">pfn.cpp:649-677 caps color Total (0xA at VA 0x18). :1111-1135 keeps table RefCount at 1 (0x21),</text>
+      <text x="88" y="842" fill="#243044">writes e1=0x46 before clearing u1, and clears Modified so a present PTE is not queued (0x4E/0x99).</text>
+
+      <text class="cite" x="28" y="880">[15]</text>
+      <text x="88" y="880">pe.cpp:188 load; :195-241 parse checks MZ, the PE signature, machine 0x8664, magic 0x20B, and</text>
+      <text x="88" y="902" fill="#243044">rejects tls_size != 0. Sections, exports, imports, and relocs continue in that same parse.</text>
+
+      <text class="cite" x="28" y="940">[16]</text>
+      <text x="88" y="940">pe.cpp:146 apply_relocs (DIR64=10, HIGHLOW=3); :162 module_candidates; :270 mapped; :303 write_image</text>
+      <text x="88" y="962" fill="#243044">checks the MZ readback; :320-344 resolve_imports writes each import VA at base + iat_rva.</text>
+
+      <text class="cite" x="28" y="1000">[17]</text>
+      <text x="88" y="1000">hook.cpp:28 find_cc_cave; :113-312 install_hook. GetTickCount[64] throws. A first insn of at least</text>
+      <text x="88" y="1022" fill="#243044">5 bytes is an E9. Past ±2GB the E9 targets a cave FF 25. Chain unless the bytes are 51 52 31 C0.</text>
+
+      <text class="cite" x="28" y="1060">[18]</text>
+      <text x="88" y="1060">x64.cpp:314 insn_len; :316 steal_bytes; :327 relocate_stolen; :374 link_trampoline. A far stolen</text>
+      <text x="88" y="1082" fill="#243044">E8/E9/jcc that does not fit stays in the body and aims at an FF 25 island placed after the back jump.</text>
+
+      <text class="cite" x="28" y="1120">[19]</text>
+      <text x="88" y="1120">x64.cpp:391 abs_jump is FF 25; :397 encode_jump prefers E9; :407-448 build_oneshot_stub. Gate:</text>
+      <text x="88" y="1142" fill="#243044">51 52, xor eax, mov rdx flag, lock cmpxchg, pop, jne. Body saves rcx, rdx, r8, r9, then calls.</text>
+
+      <text class="cite" x="28" y="1180">[20]</text>
+      <text x="88" y="1180">hello_dll/hello_dll.cpp MessageBoxA (--hello); hello_dll/beep_dll.cpp MessageBeep (--beep).</text>
+      <text x="88" y="1202" fill="#243044">Both export LaunchHello. Last of --hello, --beep, and --dll wins. --ark sets the process only.</text>
+
+      <text class="cite" x="28" y="1240">[21]</text>
+      <text x="88" y="1240">tests/cpp/simulated_memory.hpp:20-83 — SimulatedMemory: sparse 4 KiB pages, CR3 translate(),</text>
+      <text x="88" y="1262" fill="#243044">planted symbols and field offsets, fail_write_after(n). The .cpp implements the page store.</text>
+
+      <text class="cite" x="28" y="1300">[22]</text>
+      <text x="88" y="1300">tests/cpp/test_*.cpp — 122 TEST_CASE macros in 14 files. Three are tagged [system]. The filter</text>
+      <text x="88" y="1322" fill="#243044">"~[system]" excludes those three, so the runner reports 119 cases. Count the macros with Select-String.</text>
+
+      <text class="cite" x="28" y="1360">[23]</text>
+      <text x="88" y="1360">.github/workflows/tests.yml:1-22 — windows-2022, cmake --preset Debug, build dma_hello_tests,</text>
+      <text x="88" y="1382" fill="#243044">then .\bin\dma_hello_tests.exe "~[system]" -r junit::out=test-results.xml -r console.</text>
+
+      <text class="cite" x="28" y="1420">[24]</text>
+      <text x="88" y="1420">CMakeLists.txt:4 (cmake 3.25); :27-42 dma_hello, hello_dll, beep_dll; :71-81 copies runtime DLLs to bin.</text>
+      <text x="88" y="1442" fill="#243044">deploy_to_target.bat (DEST or DMA_DEPLOY_DIR; vmm.dll and symbol DLLs in the parent of bin).</text>
+    </g>
+  </g>
+
+  <rect y="5988" width="1920" height="92" fill="#10141c"/>
+  <text x="960" y="6040" text-anchor="middle" font-family="Cascadia Mono, Consolas, Courier New, monospace" font-size="14" font-weight="700" fill="#f8fafc">REPRODUCIBLE AUDIT COMMANDS:  .\build.bat   |   .\bin\dma_hello_tests.exe "~[system]"   |   (Select-String -Path "tests\cpp\*.cpp" -Pattern "TEST_CASE\(").Count == 122   |   Zero-API Grep == 0</text>
+</svg>

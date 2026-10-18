@@ -1,0 +1,16 @@
+These files are not covered by the MIT license in the repository root.
+
+vmm.dll, leechcore.dll, and leechcore_driver.dll
+  MemProcFS and LeechCore, copyright Ulf Frisk.
+  Licensed under the GNU Affero General Public License v3.0.
+  https://github.com/ufrisk/MemProcFS
+  https://github.com/ufrisk/LeechCore
+  The headers vmmdll.h and leechcore.h state their own copyright.
+
+FTD3XX.dll and FTD3XXWU.dll
+  FTDI D3XX redistributables, shipped here as part of the MemProcFS FPGA build.
+  Their terms are FTDI's, not the MIT license on this repository.
+
+dbghelp.dll, symsrv.dll, and symsrv.yes
+  Microsoft redistributables. See license_dbghelp.txt and redist_dbghelp.txt
+  in this directory.

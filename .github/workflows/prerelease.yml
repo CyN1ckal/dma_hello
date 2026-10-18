@@ -1,0 +1,54 @@
+# Copyright (c) 2026 CyNickal Software LLC
+# SPDX-License-Identifier: MIT
+
+name: pre-release
+
+on:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: configure
+        run: cmake --preset Release
+      - name: build
+        run: cmake --build --preset Release --target dma_hello
+      - name: stage
+        shell: pwsh
+        run: |
+          $dest = "package"
+          New-Item -ItemType Directory -Force -Path "$dest/bin", "$dest/hello_dll" | Out-Null
+          Copy-Item bin/dma_hello.exe "$dest/bin/"
+          Copy-Item bin/hello_dll.dll, bin/beep_dll.dll "$dest/hello_dll/"
+          foreach ($name in @(
+            "vmm.dll", "leechcore.dll", "leechcore_driver.dll",
+            "FTD3XX.dll", "FTD3XXWU.dll", "dbghelp.dll", "symsrv.dll", "symsrv.yes",
+            "dma_hello.pdb", "hello_dll.pdb", "beep_dll.pdb")) {
+            if (-not (Test-Path "bin/$name")) { continue }
+            if ($name -like "*.pdb") {
+              if ($name -eq "dma_hello.pdb") { Copy-Item "bin/$name" "$dest/bin/" }
+              else { Copy-Item "bin/$name" "$dest/hello_dll/" }
+            } else {
+              Copy-Item "bin/$name" "$dest/"
+            }
+          }
+          Compress-Archive -Path "$dest/*" -DestinationPath dma_hello-windows.zip
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: pre-${{ github.sha }}
+          name: pre-${{ github.sha }}
+          prerelease: true
+          make_latest: false
+          files: dma_hello-windows.zip
+          body: |
+            CMake Release build of ${{ github.sha }}.
+            Extract the zip and run from that directory:
+            bin\dma_hello.exe --hello --device fpga://
+            bin\dma_hello.exe --ark --beep --device fpga://

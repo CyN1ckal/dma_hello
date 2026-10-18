@@ -1,0 +1,21 @@
+# Copyright (c) 2026 CyNickal Software LLC
+# SPDX-License-Identifier: MIT
+
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  catch2:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: configure
+        run: cmake --preset Debug
+      - name: build
+        run: cmake --build --preset Debug --target dma_hello_tests
+      - name: unit and integration
+        run: .\bin\dma_hello_tests.exe "~[system]" -r junit::out=test-results.xml -r console
